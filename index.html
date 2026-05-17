@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>نظام إدارة أسطول الشركة - مصر</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#0f172a;color:#f1f5f9;direction:rtl}
+
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0f172a,#1e3a5f)}
+.login-box{background:#1e293b;border-radius:24px;padding:40px;width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.login-logo{font-size:60px;margin-bottom:10px}
+.login-title{font-size:22px;font-weight:bold;color:#38bdf8;margin-bottom:5px}
+.login-subtitle{font-size:13px;color:#94a3b8;margin-bottom:30px}
+.login-box input{width:100%;padding:14px;border-radius:12px;border:2px solid #334155;background:#0f172a;color:#f1f5f9;font-size:18px;text-align:center;margin-bottom:15px;outline:none}
+.login-box input:focus{border-color:#38bdf8}
+.btn-login{width:100%;padding:14px;background:#38bdf8;color:#0f172a;border:none;border-radius:12px;font-size:18px;font-weight:bold;cursor:pointer}
+.btn-login:hover{background:#0ea5e9}
+.login-error{color:#f87171;font-size:13px;margin-top:10px;display:none}
+.demo-accounts{font-size:11px;color:#475569;margin-top:20px;text-align:right}
+
+#mainScreen{display:none;flex-direction:column;height:100vh}
+.topbar{background:#1e293b;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155}
+.topbar-title{font-size:16px;font-weight:bold;color:#38bdf8}
+.topbar-user{font-size:12px;color:#94a3b8}
+.btn-logout{background:#ef4444;color:white;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+
+.tabs{display:flex;background:#1e293b;border-bottom:1px solid #334155;overflow-x:auto}
+.tab{padding:12px 20px;cursor:pointer;font-size:14px;color:#94a3b8;border-bottom:3px solid transparent;white-space:nowrap}
+.tab.active{color:#38bdf8;border-bottom-color:#38bdf8;font-weight:bold}
+
+.content{flex:1;overflow-y:auto;padding:16px;background:#0f172a}
+#mapContainer{height:380px;border-radius:16px;overflow:hidden;margin-bottom:16px}
+#map{height:100%}
+.card{background:#1e293b;border-radius:16px;padding:16px;margin-bottom:12px;border:1px solid #334155}
+.card-title{font-size:16px;font-weight:bold;color:#38bdf8;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#334155;padding:10px;text-align:right;color:#94a3b8}
+td{padding:10px;border-bottom:1px solid #1e293b;color:#f1f5f9}
+tr:hover td{background:#1e293b}
+.btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:bold}
+.btn-primary{background:#38bdf8;color:#0f172a}
+.btn-danger{background:#ef4444;color:white}
+.btn-warning{background:#f59e0b;color:#0f172a}
+.btn-secondary{background:#475569;color:white}
+.btn-success{background:#22c55e;color:white}
+.badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:bold;display:inline-block}
+.badge-available{background:#166534;color:#86efac}
+.badge-busy{background:#7f1d1d;color:#fca5a5}
+.badge-break{background:#78350f;color:#fcd34d}
+.badge-offline{background:#334155;color:#94a3b8}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:13px;color:#94a3b8;margin-bottom:5px}
+.form-group input,.form-group select{width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#f1f5f9;font-size:14px;outline:none}
+.driver-status-bar{display:flex;align-items:center;justify-content:space-between;background:#1e293b;padding:12px 16px;border-radius:16px;margin-bottom:12px}
+.status-toggle{padding:10px 24px;border-radius:30px;border:none;cursor:pointer;font-size:15px;font-weight:bold}
+.status-available{background:#22c55e;color:white}
+.status-busy{background:#ef4444;color:white}
+.status-break{background:#f59e0b;color:#0f172a}
+.license-bar{padding:12px 16px;border-radius:16px;margin-top:12px;text-align:center;font-size:14px;font-weight:bold}
+.license-ok{background:#166534;color:#86efac}
+.license-warning{background:#78350f;color:#fcd34d}
+.license-expired{background:#7f1d1d;color:#fca5a5}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:16px}
+.stat-card{background:#1e293b;border-radius:16px;padding:16px;text-align:center}
+.stat-number{font-size:32px;font-weight:bold;color:#38bdf8}
+.stat-label{font-size:12px;color:#94a3b8;margin-top:4px}
+.contact-card{display:flex;align-items:center;justify-content:space-between;background:#1e293b;border-radius:16px;padding:12px;margin-bottom:10px}
+.contact-info{flex:1}
+.contact-name{font-weight:bold;font-size:15px}
+.contact-car{font-size:12px;color:#94a3b8}
+.call-btn{background:#22c55e;color:white;border:none;padding:10px 16px;border-radius:30px;cursor:pointer;font-size:13px;font-weight:bold;text-decoration:none;display:inline-block}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:5000;padding:16px}
+.modal-box{background:#1e293b;border-radius:20px;padding:24px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:18px;font-weight:bold;color:#38bdf8;margin-bottom:16px}
+.alert{padding:12px 16px;border-radius:12px;margin-bottom:12px;font-size:14px}
+.alert-warning{background:#78350f;color:#fcd34d}
+.alert-info{background:#1e3a5f;color:#7dd3fc}
+.alert-success{background:#166534;color:#86efac}
+#loadingScreen{position:fixed;top:0;left:0;right:0;bottom:0;background:#0f172a;display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:16px}
+.spinner{width:50px;height:50px;border:4px solid #334155;border-top-color:#38bdf8;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="loadingScreen">
+  <div class="spinner"></div>
+  <p style="color:#94a3b8">جاري تحميل النظام...</p>
+</div>
+
+<div id="loginScreen" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">🚛</div>
+    <div class="login-title">نظام إدارة أسطول الشركة</div>
+    <div class="login-subtitle">مراقبة العربيات والسواقين</div>
+    <input type="password" id="passwordInput" placeholder="كلمة السر" onkeyup="if(event.key==='Enter')login()">
+    <button class="btn-login" onclick="login()">دخول</button>
+    <div class="login-error" id="loginError">❌ كلمة السر غلط</div>
+    <div class="demo-accounts">
+      <div>🔑 حسابات تجريبية:</div>
+      <div>👑 المدير العام: 123</div>
+      <div>🛡️ مشرف: 456</div>
+      <div>🚗 سواق: 789</div>
+      <div>👤 موظف: 000</div>
+    </div>
+  </div>
+</div>
+
+<div id="mainScreen" style="display:none;flex-direction:column;height:100vh">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="topbarTitle">نظام الأسطول</div>
+      <div class="topbar-user" id="topbarUser"></div>
+    </div>
+    <button class="btn-logout" onclick="logout()">خروج</button>
+  </div>
+  <div class="tabs" id="tabsBar"></div>
+  <div class="content" id="mainContent"></div>
+</div>
+
+<div class="modal-overlay" id="driverModal">
+  <div class="modal-box">
+    <div class="modal-title" id="driverModalTitle">إضافة سواق وعربية جديدة</div>
+    <div class="form-group"><label>الاسم بالكامل</label><input type="text" id="dm_name" placeholder="مثال: محمد أحمد"></div>
+    <div class="form-group"><label>رقم التليفون</label><input type="text" id="dm_phone" placeholder="01xxxxxxxx"></div>
+    <div class="form-group"><label>نوع العربية</label><input type="text" id="dm_car" placeholder="مثال: تويوتا كورولا 2022"></div>
+    <div class="form-group"><label>لوحة العربية</label><input type="text" id="dm_plate" placeholder="مثال: س ط م 1234"></div>
+    <div class="form-group"><label>رقم الرخصة</label><input type="text" id="dm_license" placeholder="رقم رخصة السواق"></div>
+    <div class="form-group"><label>تاريخ انتهاء الرخصة</label><input type="date" id="dm_expiry"></div>
+    <div class="form-group"><label>كلمة السر</label><input type="text" id="dm_password" placeholder="كلمة سر السواق"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeDriverModal()">إلغاء</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveDriver()">حفظ البيانات</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// البيانات الأولية
+let currentUser = null;
+let map = null;
+let markers = {};
+let watchId = null;
+let editingDriverId = null;
+
+let usersData = [];
+let driversData = [];
+
+// تهيئة البيانات
+function initData() {
+  const savedUsers = localStorage.getItem('fleet_users');
+  const savedDrivers = localStorage.getItem('fleet_drivers');
+  
+  if (savedUsers) {
+    usersData = JSON.parse(savedUsers);
+  } else {
+    usersData = [
+      { id: 'superadmin', name: 'المدير العام', phone: '01000000000', role: 'super_admin', password: '123', isActive: true },
+      { id: 'subadmin1', name: 'مشرف الأسطول', phone: '01111111111', role: 'sub_admin', password: '456', isActive: true },
+      { id: 'user1', name: 'أحمد الموظف', phone: '01222222222', role: 'user', password: '000', isActive: true }
+    ];
+    localStorage.setItem('fleet_users', JSON.stringify(usersData));
+  }
+  
+  if (savedDrivers) {
+    driversData = JSON.parse(savedDrivers);
+  } else {
+    driversData = [
+      { id: 'driver1', name: 'خالد السواق', phone: '01555555555', carNumber: 'تويوتا كورولا 2022', plateNumber: 'س ط م 1234', licenseNumber: 'رخصة-001', licenseExpiry: '2025-12-31', status: 'available', lat: 30.0444, lng: 31.2357, isActive: true, password: '789' },
+      { id: 'driver2', name: 'سعد السواق', phone: '01666666666', carNumber: 'هيونداي أكسنت 2023', plateNumber: 'د ع ب 5678', licenseNumber: 'رخصة-002', licenseExpiry: '2026-03-15', status: 'available', lat: 30.0550, lng: 31.2450, isActive: true, password: '789' }
+    ];
+    localStorage.setItem('fleet_drivers', JSON.stringify(driversData));
+  }
+}
+
+function saveUsers() {
+  localStorage.setItem('fleet_users', JSON.stringify(usersData));
+}
+
+function saveDrivers() {
+  localStorage.setItem('fleet_drivers', JSON.stringify(driversData));
+}
+
+function getStatusText(status) {
+  const map = { 'available': 'متاح', 'busy': 'مشغول', 'break': 'استراحة', 'offline': 'غير متاح' };
+  return map[status] || status;
+}
+
+function getRoleText(role) {
+  const map = { 'super_admin': 'مدير عام', 'sub_admin': 'مشرف', 'user': 'موظف', 'driver': 'سواق' };
+  return map[role] || role;
+}
+
+// تسجيل الدخول
+window.login = function() {
+  const pass = document.getElementById('passwordInput').value.trim();
+  if (!pass) return;
+  
+  let user = usersData.find(u => u.password === pass && u.isActive === true);
+  if (user) {
+    currentUser = { ...user };
+    showMainScreen();
+    return;
+  }
+  
+  let driver = driversData.find(d => d.password === pass && d.isActive === true);
+  if (driver) {
+    currentUser = { ...driver, role: 'driver' };
+    showMainScreen();
+    return;
+  }
+  
+  document.getElementById('loginError').style.display = 'block';
+};
+
+window.logout = function() {
+  currentUser = null;
+  if (watchId) navigator.geolocation.clearWatch(watchId);
+  document.getElementById('mainScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('passwordInput').value = '';
+  document.getElementById('loginError').style.display = 'none';
+};
+
+function showMainScreen() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainScreen').style.display = 'flex';
+  document.getElementById('topbarUser').innerHTML = `${currentUser.name} <span style="font-size:11px;color:#475569">(${getRoleText(currentUser.role)})</span>`;
+  
+  let tabs = [];
+  if (currentUser.role === 'super_admin') {
+    document.getElementById('topbarTitle').innerHTML = '👑 لوحة تحكم المدير العام';
+    tabs = [
+      { id: 'map', label: '🗺️ الخريطة' },
+      { id: 'drivers', label: '🚛 السواقين والعربيات' },
+      { id: 'reports', label: '📊 التقارير' },
+      { id: 'users', label: '👥 المستخدمين' },
+    ];
+  } else if (currentUser.role === 'sub_admin') {
+    document.getElementById('topbarTitle').innerHTML = '🛡️ لوحة تحكم المشرف';
+    tabs = [
+      { id: 'map', label: '🗺️ الخريطة' },
+      { id: 'drivers', label: '🚛 السواقين' },
+      { id: 'reports', label: '📊 التقارير' },
+    ];
+  } else if (currentUser.role === 'driver') {
+    document.getElementById('topbarTitle').innerHTML = '🚗 واجهة السواق';
+    tabs = [
+      { id: 'driverMap', label: '🗺️ موقعي' },
+      { id: 'driverInfo', label: '📋 بياناتي' },
+    ];
+  } else if (currentUser.role === 'user') {
+    document.getElementById('topbarTitle').innerHTML = '👤 دليل السواقين والعربيات';
+    tabs = [
+      { id: 'userMap', label: '🗺️ خريطة العربيات' },
+      { id: 'userDrivers', label: '📞 أرقام السواقين' },
+    ];
+  }
+  
+  const tabsBar = document.getElementById('tabsBar');
+  tabsBar.innerHTML = tabs.map((t, i) => `<div class="tab ${i===0?'active':''}" onclick="switchTab('${t.id}',this)">${t.label}</div>`).join('');
+  switchTab(tabs[0].id, tabsBar.querySelector('.tab'));
+}
+
+window.switchTab = function(tabId, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  loadTab(tabId);
+};
+
+function loadTab(tabId) {
+  if (tabId === 'map') renderMapView();
+  else if (tabId === 'drivers') renderDriversList();
+  else if (tabId === 'reports') renderReports();
+  else if (tabId === 'users') renderUsersList();
+  else if (tabId === 'driverMap') renderDriverMap();
+  else if (tabId === 'driverInfo') renderDriverInfo();
+  else if (tabId === 'userMap') renderUserMap();
+  else if (tabId === 'userDrivers') renderUserDriversList();
+}
+
+// الخريطة
+function initMap(lat, lng, callback) {
+  if (map) { map.remove(); map = null; markers = {}; }
+  map = L.map('map').setView([lat, lng], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+  if (callback) callback();
+}
+
+function addMarker(id, lat, lng, title, color) {
+  if (markers[id]) map.removeLayer(markers[id]);
+  const icon = L.divIcon({
+    html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 6px rgba(0,0,0,0.5)"></div>`,
+    className: '', iconSize: [14, 14]
+  });
+  markers[id] = L.marker([lat, lng], { icon }).addTo(map).bindPopup(title);
+}
+
+// خريطة المدير
+function renderMapView() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="card">
+      <div class="card-title">📍 مواقع العربيات والسواقين دلوقتي</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <span style="background:#22c55e;padding:4px 10px;border-radius:20px;font-size:12px">🟢 متاح</span>
+        <span style="background:#ef4444;padding:4px 10px;border-radius:20px;font-size:12px">🔴 مشغول</span>
+        <span style="background:#f59e0b;padding:4px 10px;border-radius:20px;font-size:12px">🟡 استراحة</span>
+        <span style="background:#475569;padding:4px 10px;border-radius:20px;font-size:12px">⚫ غير متاح</span>
+      </div>
+      <div id="mapContainer"><div id="map"></div></div>
+    </div>
+  `;
+  setTimeout(() => {
+    initMap(30.0444, 31.2357, () => {
+      driversData.forEach(d => {
+        if (d.lat && d.lng) {
+          const colors = { 'available': '#22c55e', 'busy': '#ef4444', 'break': '#f59e0b', 'offline': '#475569' };
+          const color = colors[d.status] || '#475569';
+          addMarker(d.id, d.lat, d.lng, `<b>${d.name}</b><br>🚙 ${d.carNumber}<br>📞 ${d.phone}<br>الحالة: ${getStatusText(d.status)}`, color);
+        }
+      });
+    });
+  }, 100);
+}
+
+// خريطة الموظف
+function renderUserMap() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="card">
+      <div class="card-title">🗺️ مواقع العربيات المتاحة</div>
+      <div class="alert alert-info">📌 العربيات الخضراء متاحة دلوقتي</div>
+      <div id="mapContainer"><div id="map"></div></div>
+    </div>
+  `;
+  setTimeout(() => {
+    initMap(30.0444, 31.2357, () => {
+      driversData.forEach(d => {
+        if ((d.status === 'available' || d.status === 'break') && d.lat && d.lng) {
+          const color = d.status === 'available' ? '#22c55e' : '#f59e0b';
+          addMarker(d.id, d.lat, d.lng, `<b>${d.name}</b><br>🚙 ${d.carNumber}<br>📞 ${d.phone}<br>الحالة: ${getStatusText(d.status)}`, color);
+        }
+      });
+    });
+  }, 100);
+}
+
+// دليل التليفونات للموظف
+function renderUserDriversList() {
+  const statusColors = { 'available': '#22c55e', 'busy': '#ef4444', 'break': '#f59e0b', 'offline': '#475569' };
+  const driversList = driversData.map(d => `
+    <div class="contact-card">
+      <div class="contact-info">
+        <div class="contact-name">${d.name}</div>
+        <div class="contact-car">🚙 ${d.carNumber} | ${d.plateNumber}</div>
+        <div style="font-size:12px;margin-top:4px"><span style="color:${statusColors[d.status]}">●</span> الحالة: ${getStatusText(d.status)}</div>
+      </div>
+      <a href="tel:${d.phone}" class="call-btn">📞 اتصل</a>
+    </div>
+  `).join('');
+  
+  document.getElementById('mainContent').innerHTML = `
+    <div class="card">
+      <div class="card-title">📞 دليل السواقين والعربيات</div>
+      ${driversList || '<div class="alert alert-warning">مفيش عربيات مسجلة في النظام</div>'}
+    </div>
+  `;
+}
+
+// واجهة السواق
+function renderDriverMap() {
+  const driver = driversData.find(d => d.id === currentUser.id);
+  const statusText = getStatusText(driver.status);
+  const statusClass = driver.status === 'available' ? 'status-available' : (driver.status === 'busy' ? 'status-busy' : 'status-break');
+  const statusBtnText = driver.status === 'available' ? '🟢 متاح' : (driver.status === 'busy' ? '🔴 مشغول' : '🟡 استراحة');
+  
+  document.getElementById('mainContent').innerHTML = `
+    <div class="driver-status-bar">
+      <span style="font-size:15px">⚡ حالتك دلوقتي:</span>
+      <button class="status-toggle ${statusClass}" id="statusBtn" onclick="toggleDriverStatus()">${statusBtnText}</button>
+    </div>
+    <div class="card">
+      <div class="card-title">📍 موقعي الحالي</div>
+      <div id="mapContainer"><div id="map"></div></div>
+    </div>
+    <div class="license-bar ${getLicenseClass(driver)}" id="licenseBar">${getLicenseText(driver)}</div>
+  `;
+  setTimeout(() => {
+    initMap(driver.lat || 30.0444, driver.lng || 31.2357, startDriverTracking);
+  }, 100);
+}
+
+window.toggleDriverStatus = function() {
+  const driverIndex = driversData.findIndex(d => d.id === currentUser.id);
+  if (driverIndex === -1) return;
+  
+  const statusOrder = ['available', 'busy', 'break'];
+  const currentIndex = statusOrder.indexOf(driversData[driverIndex].status);
+  const newStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
+  
+  driversData[driverIndex].status = newStatus;
+  saveDrivers();
+  currentUser.status = newStatus;
+  
+  const statusClass = newStatus === 'available' ? 'status-available' : (newStatus === 'busy' ? 'status-busy' : 'status-break');
+  const btnText = newStatus === 'available' ? '🟢 متاح' : (newStatus === 'busy' ? '🔴 مشغول' : '🟡 استراحة');
+  
+  const btn = document.getElementById('statusBtn');
+  if (btn) {
+    btn.className = `status-toggle ${statusClass}`;
+    btn.textContent = btnText;
+  }
+};
+
+function startDriverTracking() {
+  if (!navigator.geolocation) {
+    alert("المتصفح مش مدعوم خاصية تحديد الموقع");
+    return;
+  }
+  
+  watchId = navigator.geolocation.watchPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    
+    addMarker('me', lat, lng, `🚗 ${currentUser.name}`, '#38bdf8');
+    map.setView([lat, lng], 15);
+    
+    const driverIndex = driversData.findIndex(d => d.id === currentUser.id);
+    if (driverIndex !== -1) {
+      driversData[driverIndex].lat = lat;
+      driversData[driverIndex].lng = lng;
+      saveDrivers();
+    }
+  }, err => {
+    console.error("خطأ:", err);
+  }, { enableHighAccuracy: true, maximumAge: 5000 });
+}
+
+function renderDriverInfo() {
+  const driver = driversData.find(d => d.id === currentUser.id);
+  const expiry = driver.licenseExpiry || 'مش محدد';
+  
+  document.getElementById('mainContent').innerHTML = `
+    <div class="card">
+      <div class="card-title">👤 بيانات السواق والعربية</div>
+      <table style="width:100%">
+        <tr><td style="color:#94a3b8">الاسم بالكامل</td><td>${driver.name}</td></tr>
+        <tr><td style="color:#94a3b8">رقم التليفون</td><td>${driver.phone}</td></tr>
+        <tr><td style="color:#94a3b8">نوع العربية</td><td>${driver.carNumber}</td></tr>
+        <tr><td style="color:#94a3b8">لوحة العربية</td><td>${driver.plateNumber}</td></tr>
+        <tr><td style="color:#94a3b8">رقم الرخصة</td><td>${driver.licenseNumber}</td></tr>
+        <tr><td style="color:#94a3b8">انتهاء الرخصة</td><td>${expiry}</td></tr>
+        <tr><td style="color:#94a3b8">الحالة</td><td>${getStatusText(driver.status)}</td></tr>
+       </table>
+    </div>
+    <div class="license-bar ${getLicenseClass(driver)}">${getLicenseText(driver)}</div>
+  `;
+}
+
+function getLicenseClass(driver) {
+  if (!driver.licenseExpiry) return 'license-ok';
+  const days = Math.ceil((new Date(driver.licenseExpiry) - new Date()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return 'license-expired';
+  if (days <= 7) return 'license-warning';
+  return 'license-ok';
+}
+
+function getLicenseText(driver) {
+  if (!driver.licenseExpiry) return '✅ الرخصة سارية';
+  const days = Math.ceil((new Date(driver.licenseExpiry) - new Date()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return '❌ انتهت صلاحية الرخصة - يرجى التجديد';
+  if (days <= 7) return `⚠️ تنبيه: باقي ${days} أيام على انتهاء الرخصة`;
+  return `✅ الرخصة سارية - باقي ${days} يوم`;
+}
+
+// قائمة السواقين للمدير
+function renderDriversList() {
+  const rows = driversData.map(d => {
+    const daysLeft = d.licenseExpiry ? Math.ceil((new Date(d.licenseExpiry) - new Date()) / (1000 * 60 * 60 * 24)) : 999;
+    return `
+      <tr>
+        <td>${d.name}</td>
+        <td>${d.phone}</td>
+        <td>${d.carNumber}</td>
+        <td>${d.plateNumber}</td>
+        <td><span class="badge badge-${d.status}">${getStatusText(d.status)}</span></td>
+        <td style="color:${daysLeft <= 7 ? '#f87171' : '#86efac'}">${daysLeft > 100 ? 'سارية' : daysLeft + ' يوم متبقي'}</td>
+        <td>
+          <button class="btn btn-warning" style="padding:4px 8px;font-size:12px" onclick="editDriver('${d.id}')">✏️ تعديل</button>
+          <button class="btn btn-secondary" style="padding:4px 8px;font-size:12px;margin-right:4px" onclick="changeDriverStatus('${d.id}')">🔄 تغيير الحالة</button>
+          <button class="btn btn-danger" style="padding:4px 8px;font-size:12px;margin-right:4px" onclick="deleteDriver('${d.id}','${d.name}')">🗑️ حذف</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  document.getElementById('mainContent').innerHTML = `
+    <div class="card">
+      <div class="card-title">
+        <span>🚛 السواقين والعربيات (إجمالي ${driversData.length})</span>
+        <button class="btn btn-primary" onclick="openDriverModal()">+ إضافة سواق وعربية</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%">
+          <thead><tr><th>الاسم</th><th>التليفون</th><th>العربية</th><th>اللوحة</th><th>الحالة</th><th>الرخصة</th><th>إجراءات</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="7" style="text-align:center">مفيش بيانات</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+window.openDriverModal = function(driverId = null) {
+  editingDriverId = driverId;
+  document.getElementById('driverModalTitle').textContent = driverId ? 'تعديل بيانات السواق والعربية' : 'إضافة سواق وعربية جديد';
+  document.getElementById('driverModal').style.display = 'flex';
+  if (!driverId) {
+    ['dm_name','dm_phone','dm_car','dm_plate','dm_license','dm_expiry','dm_password'].forEach(id => document.getElementById(id).value = '');
+  }
+};
+
+window.editDriver = async function(driverId) {
+  const driver = driversData.find(d => d.id === driverId);
+  if (!driver) return;
+  document.getElementById('dm_name').value = driver.name;
+  document.getElementById('dm_phone').value = driver.phone;
+  document.getElementById('dm_car').value = driver.carNumber;
+  document.getElementById('dm_plate').value = driver.plateNumber;
+  document.getElementById('dm_license').value = driver.licenseNumber;
+  document.getElementById('dm_expiry').value = driver.licenseExpiry || '';
+  document.getElementById('dm_password').value = driver.password;
+  openDriverModal(driverId);
+};
+
+window.closeDriverModal = function() { 
+  document.getElementById('driverModal').style.display = 'none'; 
+  editingDriverId = null; 
+};
+
+window.saveDriver = function() {
+  const name = document.getElementById('dm_name').value.trim();
+  const phone = document.getElementById('dm_phone').value.trim();
+  const carNumber = document.getElementById('dm_car').value.trim();
+  const plateNumber = document.getElementById('dm_plate').value.trim();
+  const licenseNumber = document.getElementById('dm_license').value.trim();
+  const expiryStr = document.getElementById('dm_expiry').value;
+  const password = document.getElementById('dm_password').value.trim();
+  
+  if (!name || !phone || !password) { 
+    alert("الاسم والتليفون وكلمة السر مطلوبين"); 
+    return; 
+  }
+  
+  if (editingDriverId) {
+    const index = driversData.findIndex(d => d.id === editingDriverId);
+    if (index !== -1) {
+      driversData[index] = {
+        ...driversData[index],
+        name, phone, carNumber, plateNumber, licenseNumber,
+        licenseExpiry: expiryStr || null,
+        password
+      };
+      saveDrivers();
+    }
+  } else {
+    const newId = 'driver' + Date.now();
+    driversData.push({
+      id: newId, name, phone, carNumber, plateNumber, licenseNumber,
+      licenseExpiry: expiryStr || null,
+      status: 'offline', lat: 30.0444, lng: 31.2357,
+      isActive: true, password
+    });
+    saveDrivers();
+  }
+  closeDriverModal();
+  renderDriversList();
+};
+
+window.deleteDriver = function(driverId, name) {
+  if (!confirm(`تأكيد حذف السواق "${name}" وكل بياناته؟`)) return;
+  driversData = driversData.filter(d => d.id !== driverId);
+  saveDrivers();
+  renderDriversList();
+};
+
+window.changeDriverStatus = function(driverId) {
+  const newStatus = prompt("اختر الحالة الجديدة:\n1- متاح\n2- مشغول\n3- استراحة\n4- غير متاح");
+  const statusMap = { '1':'available', '2':'busy', '3':'break', '4':'offline' };
+  if (statusMap[newStatus]) {
+    const index = driversData.findIndex(d => d.id === driverId);
+    if (index !== -1) {
+      driversData[index].status = statusMap[newStatus];
+      saveDrivers();
+      renderDriversList();
+    }
+  }
+};
+
+// التقارير
+function renderReports() {
+  let available = 0, busy = 0, breakCount = 0, offline = 0;
+  let expiringDrivers = [];
+  
+  driversData.forEach(d => {
+    if (d.status === 'available') available++;
+    else if (d.status === 'busy') busy++;
+    else if (d.status === 'break') breakCount++;
+    else offline++;
+    
+    if (d.licenseExpiry) {
+      const days = Math.ceil((new Date(d.licenseExpiry) - new Date()) / (1000 * 60 * 60 * 24));
+      if (days <= 7) expiringDrivers.push({ name: d.name, car: d.carNumber, days });
+    }
+  });
+  
+  const driversTableRows = driversData.map(d => `
+    <tr>
+      <td>${d.name}</td>
+      <td>${d.carNumber}</td>
+      <td>${d.plateNumber}</td>
+      <td>${d.phone}</td>
+      <td><span class="badge badge-${d.status}">${getStatusText(d.status)}</span></td>
+    </tr>
+  `).join('');
+  
+  document.getElementById('mainContent').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-number" style="color:#22c55e">${available}</div><div class="stat-label">🚛 عربيات متاحة</div></div>
+      <div class="stat-card"><div class="stat-number" style="color:#ef4444">${busy}</div><div class="stat-label">🔴 عربيات مشغولة</div></div>
+      <div class="stat-card"><div class="stat-number" style="color:#f59e0b">${breakCount}</div><div class="stat-label">🟡 استراحة</div></div>
+      <div class="stat-card"><div class="stat-number" style="color:#475569">${offline}</div><div class="stat-label">⚫ غير متاحة</div></div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-number">${driversData.length}</div><div class="stat-label">🚛 إجمالي الأسطول</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">⚠️ تنبيهات انتهاء الرخص</div>
+      ${expiringDrivers.length ? expiringDrivers.map(d => `<div class="alert alert-warning">⚠️ السواق ${d.name} - العربية ${d.car} : باقي ${d.days} يوم على انتهاء الرخصة</div>`).join('') : '<div class="alert alert-success">✅ كل الرخص سارية</div>'}
+    </div>
+    <div class="card">
+      <div class="card-title">📋 قائمة الأسطول كاملة</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%">
+          <thead><tr><th>السواق</th><th>العربية</th><th>اللوحة</th><th>التليفون</th><th>الحالة</th></tr></thead>
+          <tbody>${driversTableRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// إدارة المستخدمين
+function renderUsersList() {
+  const rows = usersData.map(u => `
+    <tr>
+      <td>${u.name}</td>
+      <td>${u.phone}</td>
+      <td>${getRoleText(u.role)}</noscript>
+      <td><span class="badge ${u.isActive ? 'badge-available' : 'badge-offline'}">${u.isActive ? 'نشط' : 'معطل'}</span></td>
+      <td>
+        <button class="btn btn-warning" style="padding:4px 8px;font-size:12px" onclick="toggleUser('${u.id}')">${u.isActive ? 'تعطيل' : 'تفعيل'}</button>
+        <button class="btn btn-danger" style="padding:4px 8px;font-size:12px;margin-right:4px" onclick="deleteUser('${u.id}','${u.name}')">حذف</button>
+       </noscript>
+    </tr>
+  `).join('');
+  
+  document.getElementById('mainContent').innerHTML = `
+    <div class="card">
+      <div class="card-title">👥 إدارة المستخدمين والصلاحيات</div>
+      <div class="alert alert-info">📌 تقدر تفعل أو تعطل أو تحذف أي مستخدم</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%">
+          <thead><tr><th>الاسم</th><th>التليفون</th><th>الصلاحية</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+window.toggleUser = function(userId) {
+  const index = usersData.findIndex(u => u.id === userId);
+  if (index !== -1) {
+    usersData[index].isActive = !usersData[index].isActive;
+    saveUsers();
+    renderUsersList();
+  }
+};
+
+window.deleteUser = function(userId, name) {
+  if (!confirm(`تأكيد حذف المستخدم "${name}"؟`)) return;
+  usersData = usersData.filter(u => u.id !== userId);
+  saveUsers();
+  renderUsersList();
+};
+
+// تشغيل التطبيق
+initData();
+document.getElementById('loadingScreen').style.display = 'none';
+document.getElementById('loginScreen').style.display = 'flex';
+</script>
+</body>
+</html>
